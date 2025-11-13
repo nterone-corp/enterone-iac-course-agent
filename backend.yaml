@@ -57,12 +57,10 @@ Parameters:
   ExistingTargetSecurityGroup:
     Description: Security group for the existing RDS database
     Type: AWS::EC2::SecurityGroup::Id
-  RouteTableId:
-    Type: String
-    Default: rtb-02126513bd9512b8b
   PDFS3Bucket:
     Description: S3 Bucket where course PDFs are stored
     Type: String
+    Default: enterone-website-assets-staging
 
 Resources:
   LambdaSecurityGroup:
@@ -285,6 +283,7 @@ Resources:
           BUCKET_NAME: !Ref ChatLogsBucket
           BUCKET_PREFIX: sessions/
           OPENSEARCH_HOST: !GetAtt OpenSearchCollection.CollectionEndpoint
+          BEDROCK_ENDPOINT_URL: !Sub "https://bedrock-runtime.${AWS::Region}.amazonaws.com"
           REGION_NAME: !Ref AWS::Region
           MODEL_ID: us.anthropic.claude-sonnet-4-5-20250929-v1:0
           USERNAME_DB: ai_agent_user
@@ -332,6 +331,7 @@ Resources:
       Environment:
         Variables:
           OPENSEARCH_HOST: !GetAtt OpenSearchCollection.CollectionEndpoint
+          BEDROCK_ENDPOINT_URL: !Sub "https://bedrock-runtime.${AWS::Region}.amazonaws.com"
           REGION_NAME: !Ref AWS::Region
           MODEL_ID: us.anthropic.claude-sonnet-4-5-20250929-v1:0
           INDEX_NAME: enterone-course-pdfs
