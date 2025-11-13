@@ -392,6 +392,7 @@ Resources:
           "States": {
             "VectorizeFile": {
               "Type": "Task",
+              "MaxConcurrency": 150,
               "Resource": "arn:aws:states:::lambda:invoke",
               "OutputPath": "$.Payload",
               "Parameters": {
