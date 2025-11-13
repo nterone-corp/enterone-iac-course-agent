@@ -26,9 +26,6 @@ Parameters:
   VectorizeFunctionName:
     Type: String
     Default: enterone-website-dev-vectorize-file
-  ChatLogsBucketName:
-    Type: String
-    Default: course-agent-chatlogs
   APIRoleName:
     Type: String
     Default: course-agent-role
@@ -49,18 +46,20 @@ Parameters:
     Default: 600
   VpcId:
     Type: AWS::EC2::VPC::Id
-    Default: vpc-091e93d060f4e78cf
   SubnetIds:
-    Description: List
     Type: List<AWS::EC2::Subnet::Id>
-    Default: subnet-090fe09a41e65518a, subnet-02c6b0991deaf9454
   ExistingTargetSecurityGroup:
-    Description: Security group for the existing RDS database
     Type: AWS::EC2::SecurityGroup::Id
+  RouteTableId:
+    Type: String
+    Default: rtb-02126513bd9512b8b
   PDFS3Bucket:
-    Description: S3 Bucket where course PDFs are stored
     Type: String
     Default: enterone-website-assets-staging
+  PrefixListId:
+    Type: String
+    Default: pl-7ba54012
+
 
 Resources:
   LambdaSecurityGroup:
@@ -68,11 +67,6 @@ Resources:
     Properties:
       GroupDescription: SG for Lambda to connect to RDS/service
       VpcId: !Ref VpcId
-      SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
 
   AllowLambdaIngress:
     Type: AWS::EC2::SecurityGroupIngress
@@ -90,6 +84,33 @@ Resources:
       FromPort: 5432
       ToPort: 5432
       DestinationSecurityGroupId: !Ref ExistingTargetSecurityGroup
+      GroupId: !Ref LambdaSecurityGroup
+
+  AllowLambdaEgressToS3:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref LambdaSecurityGroup
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      DestinationPrefixListId: !Ref PrefixListId
+
+  AllowLambdaEgressToBedrock:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      DestinationSecurityGroupId: !Ref LambdaSecurityGroup
+      GroupId: !Ref LambdaSecurityGroup
+
+  AllowLambdaIngressToBedrock:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
       GroupId: !Ref LambdaSecurityGroup
 
   APILambdaExecutionRole:
@@ -177,14 +198,14 @@ Resources:
   EncryptionPolicy:
     Type: AWS::OpenSearchServerless::SecurityPolicy
     Properties:
-      Name: !Sub "encryption-${EnvironmentName}"
+      Name: !Sub "${AWS::StackName}-encryption"
       Type: encryption
       Policy: !Sub |
         {
           "Rules": [
             {
               "ResourceType": "collection",
-              "Resource": ["collection/${EnvironmentName}-collection"]
+              "Resource": ["collection/${AWS::StackName}-collection"]
             }
           ],
           "AWSOwnedKey": true
@@ -193,7 +214,7 @@ Resources:
   NetworkPolicy:
     Type: AWS::OpenSearchServerless::SecurityPolicy
     Properties:
-      Name: !Sub "network-${EnvironmentName}"
+      Name: !Sub "${AWS::StackName}-network"
       Type: network
       Policy: !Sub |
         [
@@ -201,7 +222,7 @@ Resources:
             "Rules": [
               {
                 "ResourceType": "collection",
-                "Resource": ["collection/${EnvironmentName}-collection"]
+                "Resource": ["collection/${AWS::StackName}-collection"]
               }
             ],
             "AllowFromPublic": true
@@ -214,7 +235,7 @@ Resources:
       - EncryptionPolicy
       - NetworkPolicy
     Properties:
-      Name: !Sub "${EnvironmentName}-collection"
+      Name: !Sub "${AWS::StackName}-collection"
       Type: VECTORSEARCH
 
   DataAccessPolicy:
@@ -222,7 +243,7 @@ Resources:
     DependsOn:
       - OpenSearchCollection
     Properties:
-      Name: !Sub "data-$EnvironmentName"
+      Name: !Sub "${AWS::StackName}-data"
       Type: data
       Policy: !Sub |
         [
@@ -230,7 +251,7 @@ Resources:
             "Rules": [
               {
                 "ResourceType": "collection",
-                "Resource": ["collection/${EnvironmentName}-collection"],
+                "Resource": ["collection/${AWS::StackName}-collection"],
                 "Permission": [
                   "aoss:CreateCollectionItems",
                   "aoss:DeleteCollectionItems",
@@ -240,7 +261,7 @@ Resources:
               },
               {
                 "ResourceType": "index",
-                "Resource": ["index/${EnvironmentName}-collection/*"],
+                "Resource": ["index/${AWS::StackName}-collection/*"],
                 "Permission": [
                   "aoss:CreateIndex",
                   "aoss:DeleteIndex",
@@ -258,19 +279,50 @@ Resources:
           }
         ]
 
+  BedrockVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.bedrock-runtime"
+      VpcId: !Ref VpcId
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+      SubnetIds: !Ref SubnetIds
+
+  S3VPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcId: !Ref VpcId
+      VpcEndpointType: Gateway
+      RouteTableIds:
+        - !Ref RouteTableId
+
   OpenSearchManagedVPCEndpoint:
     Type: AWS::OpenSearchServerless::VpcEndpoint
     Properties:
-      Name: !Sub aoss-vpc-endpoint-${EnvironmentName}
+      Name: aoss-vpc-endpoint
       VpcId: !Ref VpcId
       SubnetIds: !Ref SubnetIds
       SecurityGroupIds:
         - !Ref LambdaSecurityGroup
 
+  StepFunctionVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.states"
+      VpcId: !Ref VpcId
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+      SubnetIds: !Ref SubnetIds
+
   ChatLogsBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref ChatLogsBucketName
+      BucketName: !Sub "course-agent-chatlogs-${AWS::AccountId}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -318,6 +370,7 @@ Resources:
       Environment:
         Variables:
           STEP_FUNCTION_ARN: !Ref VectorizeFileStateMachine
+          STEP_FUNCTION_ENDPOINT_URL: !Sub "https://states.${AWS::Region}.amazonaws.com"
           USERNAME_DB: ai_agent_user
           PASSWORD_DB: D@taFlow!98zR
           HOST_DB: enterone-website-shared.cdc8m2awyyxs.us-east-2.rds.amazonaws.com
@@ -340,9 +393,9 @@ Resources:
       Environment:
         Variables:
           OPENSEARCH_HOST: !GetAtt OpenSearchCollection.CollectionEndpoint
-          BEDROCK_ENDPOINT_URL: !Sub "https://bedrock-runtime.${AWS::Region}.amazonaws.com"
           REGION_NAME: !Ref AWS::Region
           MODEL_ID: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+          BEDROCK_ENDPOINT_URL: !Sub "https://bedrock-runtime.${AWS::Region}.amazonaws.com"
           INDEX_NAME: enterone-course-pdfs
           S3_BUCKET: !Ref PDFS3Bucket
       VpcConfig:
@@ -377,7 +430,7 @@ Resources:
       - VectorizeFileLambda
     Properties:
       RoleArn: !GetAtt StepFunctionRole.Arn
-      StateMachineName: !Sub "${AWS::StackName}-vectorize-file-${EnvironmentName}"
+      StateMachineName: !Sub "${AWS::StackName}-vectorize-file"
       StateMachineType: STANDARD
       DefinitionString: !Sub |
         {
