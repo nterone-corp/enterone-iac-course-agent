@@ -215,12 +215,12 @@ Resources:
   VectorizeDLQ:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub "${EnvironmentName}-vectorize-dlq-aaa"
+      QueueName: !Sub "${EnvironmentName}-vectorize-dlq"
 
   VectorizeQueue:
     Type: AWS::SQS::Queue
     Properties:
-      QueueName: !Sub "${EnvironmentName}-vectorize-queue-aaa"
+      QueueName: !Sub "${EnvironmentName}-vectorize-queue"
       VisibilityTimeout: 900
       RedrivePolicy:
         deadLetterTargetArn: !GetAtt VectorizeDLQ.Arn
