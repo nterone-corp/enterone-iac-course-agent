@@ -4,9 +4,39 @@ Description: CloudFront Distribution for S3 Static Website Hosting
 Parameters:
   BucketName:
     Type: String
-    Description: Name of the existing S3 bucket with static website hosting enabled
+    Description: Base name for the S3 bucket
+  EnvironmentName:
+    Type: String
+    Description: Environment identifier (e.g., dev, staging, prod)
 
 Resources:
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${BucketName}-${EnvironmentName}"
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Suspended
+      WebsiteConfiguration:
+        IndexDocument: index.html
+
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOAI.S3CanonicalUserId
+            Action: s3:GetObject
+            Resource: !Join
+              - ''
+              - - !GetAtt WebsiteBucket.Arn
+                - '/*'
+
   CloudFrontOAI:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
     Properties:
@@ -22,9 +52,9 @@ Resources:
 
         Origins:
           - Id: S3Origin
-            DomainName: !Sub "${BucketName}.s3-website-${AWS::Region}.amazonaws.com"
-            CustomOriginConfig:
-              OriginProtocolPolicy: http-only
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${CloudFrontOAI}"
 
         DefaultCacheBehavior:
           TargetOriginId: S3Origin
@@ -52,7 +82,7 @@ Resources:
           # ACMCertificateArn: arn:aws:acm:us-east-1:123456789012:certificate/xxxxxx
           # SslSupportMethod: sni-only
 
-        Comment: "CloudFront distribution for static website"
+        Comment: !Sub "CloudFront distribution for ${EnvironmentName} static website"
         PriceClass: PriceClass_100
         HttpVersion: http2
 
@@ -60,3 +90,9 @@ Outputs:
   DistributionDomainName:
     Description: CloudFront distribution domain name
     Value: !GetAtt CloudFrontDistribution.DomainName
+  WebsiteBucketName:
+    Description: Name of the created S3 bucket hosting the site
+    Value: !Ref WebsiteBucket
+  WebsiteBucketRegionalDomain:
+    Description: S3 endpoint used as the CloudFront origin
+    Value: !GetAtt WebsiteBucket.RegionalDomainName
