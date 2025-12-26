@@ -152,10 +152,10 @@ The `backend.dev-params.json` file contains environment-specific configurations.
 | `VectorizeFileRepositoryName` | ECR repo for Vectorize | `enterone/vectorize` |
 | `EventHandlerRepositoryName` | ECR repo for Event Handler | `enterone/event-handler` |
 | `ImageTag` | Docker image tag | `dev` |
-| `APIFunctionName` | Name for Course Agent Lambda | `enterone-website-dev-course-agent` |
-| `EventHandlerFunctionName` | Name for Event Handler Lambda | `enterone-website-dev-event-handler` |
-| `VectorizeFunctionName` | Name for Vectorize Lambda | `enterone-website-dev-vectorize-file` |
-| `ChatLogsBucketName` | S3 bucket for chat logs | `course-agent-chatlogs` |
+| `APIFunctionName` | Name for Course Agent Lambda | `enterone-course-agent-dev` |
+| `EventHandlerFunctionName` | Name for Event Handler Lambda | `enterone-event-handler-dev` |
+| `VectorizeFunctionName` | Name for Vectorize Lambda | `enterone-vectorize-file-dev` |
+| `ChatLogsBucketName` | S3 bucket for chat logs | `course-agent-chatlogs-dev` |
 | `MemorySize` | Lambda memory allocation (MB) | `512` |
 | `TimeoutSeconds` | Lambda timeout | `600` |
 | `VpcId` | VPC for Lambda functions | *Required* |
