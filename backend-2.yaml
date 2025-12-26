@@ -85,6 +85,10 @@ Parameters:
     Type: String
     Default: https://d232n70twdz0lt.cloudfront.net
 
+  ModelId:
+    Type: String
+    Default: global.anthropic.claude-haiku-4-5-20251001-v1:0
+
 
 ###############################################################################
 # SECURITY GROUPS
@@ -337,7 +341,7 @@ Resources:
           OPENSEARCH_HOST: !GetAtt OpenSearchCollection.CollectionEndpoint
           BEDROCK_ENDPOINT_URL: !Sub "https://bedrock-runtime.${AWS::Region}.amazonaws.com"
           REGION_NAME: !Ref AWS::Region
-          MODEL_ID: global.anthropic.claude-haiku-4-5-20251001-v1:0
+          MODEL_ID: !Ref ModelId
           USERNAME_DB: ai_agent_user
           PASSWORD_DB: D@taFlow!98zR
           HOST_DB: enterone-website-shared.cdc8m2awyyxs.us-east-2.rds.amazonaws.com
