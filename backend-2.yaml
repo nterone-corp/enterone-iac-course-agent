@@ -27,31 +27,31 @@ Parameters:
 
   APIFunctionName:
     Type: String
-    Default: enterone-website-dev-course-agent
+    Default: enterone-website-course-agent-dev
 
   EventHandlerFunctionName:
     Type: String
-    Default: enterone-website-dev-event-handler
+    Default: enterone-website-event-handler-dev
 
   VectorizeFunctionName:
     Type: String
-    Default: enterone-website-dev-vectorize-file
+    Default: enterone-website-vectorize-file-dev
 
   ChatLogsBucketName:
     Type: String
-    Default: course-agent-chatlogs
+    Default: course-agent-chatlogs-dev
 
   APIRoleName:
     Type: String
-    Default: course-agent-role
+    Default: course-agent-role-dev
 
   EventHandlerRoleName:
     Type: String
-    Default: event-handler-role
+    Default: event-handler-role-dev
 
   VectorizeRoleName:
     Type: String
-    Default: vectorize-file-role
+    Default: vectorize-file-role-dev
 
   ApiGatewayName:
     Type: String
